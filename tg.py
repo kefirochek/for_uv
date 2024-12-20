@@ -1,100 +1,161 @@
-import sys
-import subprocess
-from PyQt6.QtWidgets import (
-    QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QHBoxLayout
+import sqlite3
+from random import randint
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import Command
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from aiogram.types import BotCommand, Message
+
+
+def random_book():
+    con = sqlite3.connect('books.db')
+    cur = con.cursor()
+    result = cur.execute(f"""SELECT name FROM book""").fetchall()
+    rand = randint(0, len(result) - 1)
+    select_book = (result[rand][0])
+    book = cur.execute(f"""SELECT * FROM book WHERE name = '{select_book}'""").fetchall()
+    con.close()
+    return book[0]
+
+
+def polizovat(id):
+    global a
+    # flag = False
+    flag = False
+    con = sqlite3.connect('books.db')
+    cur = con.cursor()
+    result_id = cur.execute(f"""SELECT user FROM users
+    WHERE user = '{id}'""").fetchall()
+    if result_id:
+        result = cur.execute(f"""SELECT prochitano FROM users
+        WHERE user = '{id}'""").fetchone()
+    else:
+        a = cur.execute(f'''INSERT INTO users(user) VALUES('{id}')''')
+        con.commit()
+        flag = True
+    con.close()
+    if flag:
+        a = random_book()
+        return str(f'{a[2]} "{a[0]}"\n{a[1]}\nПоджанры: {a[3]}\n\n{a[5]}')
+    else:
+        mama = 0
+        while True:
+            mama += 1
+            a = random_book()
+            if result[0] != None:
+                book_prochit = [(result[0].split('---'))[i] for i in range(len(result[0].split('---')))]
+                if a[0] not in book_prochit:
+                    return str(f'{a[2]} "{a[0]}"\n{a[1]}\nПоджанры: {a[3]}\n\n{a[5]}')
+                if mama == 50:
+                    return str('Вы прочитали все мои книги!!!')
+            else:
+                return str(f'{a[2]} "{a[0]}"\n{a[1]}\nПоджанры: {a[3]}\n\n{a[5]}')
+
+# Создаем объекты бота и диспетчера
+bot = Bot(token="7742980390:AAE5JT73VVPQMXJrSUaUGUX603Q1G4h3iiQ")
+dp = Dispatcher()
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Создаем объекты кнопок
+button_1 = InlineKeyboardButton(
+    text='Прочитано🦐',
+    callback_data='button_1_pressed'
 )
-from PyQt6.QtCore import QTimer, QTime
+
+# Создаем объект инлайн-клавиатуры
+keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[[button_1]]
+)
 
 
-class ShutdownTimer(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Таймер выключения")
-
-        self.time_label = QLabel("00:00:00", self)
-        self.time_label.setStyleSheet("font-size: 24px;")
-
-
-        self.hours_input = QLineEdit(self)
-        self.hours_input.setPlaceholderText("Часы")
-
-        self.minutes_input = QLineEdit(self)
-        self.minutes_input.setPlaceholderText("Минуты")
-
-        self.seconds_input = QLineEdit(self)
-        self.seconds_input.setPlaceholderText("Секунды")
-
-        self.start_button = QPushButton("Запустить таймер", self)
-        self.start_button.clicked.connect(self.start_timer)
-
-        self.stop_button = QPushButton("Остановить таймер", self)
-        self.stop_button.clicked.connect(self.stop_timer)
-        self.stop_button.setEnabled(False)
-
-        # Разметка
-        layout = QVBoxLayout()
-        time_layout = QHBoxLayout()
-        time_layout.addWidget(self.hours_input)
-        time_layout.addWidget(self.minutes_input)
-        time_layout.addWidget(self.seconds_input)
-
-        layout.addLayout(time_layout)
-        layout.addWidget(self.time_label)
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.stop_button)
-        self.setLayout(layout)
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_timer)
-        self.remaining_time = 0
-
-    def start_timer(self):
-        try:
-            hours = int(self.hours_input.text()) if self.hours_input.text() else 0
-            minutes = int(self.minutes_input.text()) if self.minutes_input.text() else 0
-            seconds = int(self.seconds_input.text()) if self.seconds_input.text() else 0
-
-            self.remaining_time = hours * 3600 + minutes * 60 + seconds
-
-            if self.remaining_time <= 0:
-                raise ValueError("Время должно быть больше 0")
-            self.timer.start(1000)
-            self.hours_input.setEnabled(False)
-            self.minutes_input.setEnabled(False)
-            self.seconds_input.setEnabled(False)
-            self.start_button.setEnabled(False)
-            self.stop_button.setEnabled(True)
-        except ValueError as e:
-            print(f"Ошибка: {e}")
-
-    def update_timer(self):
-        self.remaining_time -= 1
-        time_str = QTime.fromMSecsSinceStartOfDay(self.remaining_time * 1000).toString("hh:mm:ss")
-        self.time_label.setText(time_str)
-
-        if self.remaining_time == 0:
-            self.timer.stop()
-            self.execute_shutdown()
-            self.close()
-
-    def stop_timer(self):
-        self.timer.stop()
-        self.hours_input.setEnabled(True)
-        self.minutes_input.setEnabled(True)
-        self.seconds_input.setEnabled(True)
-        self.start_button.setEnabled(True)
-        self.stop_button.setEnabled(False)
-        self.time_label.setText("00:00:00")
-
-    def execute_shutdown(self):
-        try:
-            subprocess.Popen(['cmd.exe', '/c', 'shutdown -s -t 0'], creationflags=subprocess.CREATE_NEW_CONSOLE)
-        except Exception as e:
-            print(f"Ошибка при выполнении команды: {e}")
+@dp.message(Command(commands=['start']))
+async def process_help_command(message: Message):
+    k = polizovat(f'{message.from_user.id}')
+    if k == 'Вы прочитали все мои книги!!!':
+        await message.answer(
+            text=k,
+        )
+    else:
+        await message.answer(
+        text=k,
+        reply_markup=keyboard
+)
 
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = ShutdownTimer()
-    window.show()
-    sys.exit(app.exec())
+
+
+# ----------------------------------------
+@dp.callback_query(F.data == 'button_1_pressed')
+async def process_button_1_press(callback: CallbackQuery):
+    con = sqlite3.connect('books.db')
+    cur = con.cursor()
+    znach =   cur.execute(f"""SELECT prochitano FROM users
+        WHERE user = '{callback.from_user.id}'""").fetchone()
+    if znach[0]:
+        znach = znach[0] + '---' + a[0]
+    else:
+        znach = a[0]
+    result = cur.execute(f"""UPDATE users
+    SET prochitano = '{znach}'
+    WHERE user = '{callback.from_user.id}'""").fetchall()
+    con.commit()
+    con.close()
+    await callback.answer(text='Умничка! Больше я не посоветую тебе эту книгу!')
+
+
+# -----------------------------------------------------------------------------------------------------------------------
+# всё для about
+
+url_button_1 = InlineKeyboardButton(
+    text='Тг - канал автора',
+    url='https://t.me/kefirochek_fir'
+)
+
+url_button_2 = InlineKeyboardButton(
+    text='Инста автора',
+    url=f'https://www.instagram.com/fir_fir_kefir?igsh=djdwaW1xbnQ0emZu'
+)
+
+keyboard2 = InlineKeyboardMarkup(
+    inline_keyboard=[[url_button_1],
+                     [url_button_2]]
+)
+
+@dp.message(Command(commands=['about']))
+async def process_help_command(message: Message):
+    await message.answer(
+        text='Автор просто советует книжки :3',
+        reply_markup=keyboard2
+)
+# -----------------------------------------------------------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------------------------
+#  хэндлер на команду "/help"
+@dp.message(Command(commands=['help']))
+async def process_help_command(message: Message):
+    await message.answer(
+        '/start - чтобы начать \n'
+        '/about - информация об авторе\n'
+        '/help - основные команды'
+    )
+
+# ----------------------------------------------------------------------------------------
+# Создаем асинхронную функцию
+async def set_main_menu(bot: Bot):
+    # Создаем список с командами и их описанием для кнопки menu
+    main_menu_commands = [
+        BotCommand(command='/start', description='Начать работу с ботом'),
+        BotCommand(command='/help', description='Справка'),
+        BotCommand(command='/about',  description='Об авторе')
+    ]
+    await bot.set_my_commands(main_menu_commands)
+
+@dp.message()
+async def send_answer(message: Message):
+    await message.answer(text='Не знаю такой ответ, попроси книгу через /start')
+
+
+if __name__ == '__main__':
+    dp.startup.register(set_main_menu)
+    dp.run_polling(bot)
