@@ -51,12 +51,6 @@ def polizovat(id):
             else:
                 return str(f'{a[2]} "{a[0]}"\n{a[1]}\nПоджанры: {a[3]}\n\n{a[5]}')
 
-
-
-
-
-
-
 # Создаем объекты бота и диспетчера
 bot = Bot(token="7742980390:AAE5JT73VVPQMXJrSUaUGUX603Q1G4h3iiQ")
 dp = Dispatcher()
@@ -64,14 +58,9 @@ dp = Dispatcher()
 # ----------------------------------------------------------------------------------------------------------------------
 # Создаем объекты кнопок
 button_1 = InlineKeyboardButton(
-    text='Прочитано✅',
+    text='Прочитано🦐',
     callback_data='button_1_pressed'
 )
-
-# button_2 = InlineKeyboardButton(
-#     text='Не прочитано🦐',
-#     callback_data='button_2_pressed'
-# )
 
 # Создаем объект инлайн-клавиатуры
 keyboard = InlineKeyboardMarkup(
@@ -113,13 +102,6 @@ async def process_button_1_press(callback: CallbackQuery):
     con.close()
     await callback.answer(text='Умничка! Больше я не посоветую тебе эту книгу!')
 
-
-
-# Этот хэндлер будет срабатывать на апдейт типа CallbackQuery
-# с data 'button_2_pressed'
-# @dp.callback_query(F.data == 'button_2_pressed')
-# async def process_button_2_press(callback: CallbackQuery):
-#     await callback.answer(text='Я ещё раз посоветую тебе эту книгу')
 
 # -----------------------------------------------------------------------------------------------------------------------
 # всё для about
@@ -169,6 +151,9 @@ async def set_main_menu(bot: Bot):
     ]
     await bot.set_my_commands(main_menu_commands)
 
+@dp.message()
+async def send_answer(message: Message):
+    await message.answer(text='Не знаю такой ответ, попроси книгу через /start')
 
 
 if __name__ == '__main__':
